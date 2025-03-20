@@ -137,78 +137,95 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noisejs/2.1.0/noise.min.js"></script>
+    <script>
+        // Встроенная версия NoiseJS для избежания проблем с CDN
+        class Noise {
+            constructor(seed){this.grad3=[[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
+                [0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];this.p=[];for(let i=0;i<256;i++)this.p[i]=Math.floor(seed.random()*256);
+                this.perm=[];for(let i=0;i<512;i++)this.perm[i]=this.p[i&255];}
+            dot(g,x,y){return g[0]*x+g[1]*y;}
+            mix(a,b,t){return (1-t)*a+t*b;}
+            fade(t){return t*t*t*(t*(t*6-15)+10);}
+            perlin2(x,y){
+                let X=Math.floor(x)&255,Y=Math.floor(y)&255;
+                x-=Math.floor(x);y-=Math.floor(y);
+                let u=this.fade(x),v=this.fade(y);
+                let A=this.perm[X]+Y,AA=this.perm[A],AB=this.perm[A+1],
+                    B=this.perm[X+1]+Y,BA=this.perm[B],BB=this.perm[B+1];
+                return this.mix(this.mix(this.dot(this.grad3[this.perm[AA]%12],x,y),
+                        this.dot(this.grad3[this.perm[BA]%12],x-1,y),u),
+                    this.mix(this.dot(this.grad3[this.perm[AB]%12],x,y-1),
+                        this.dot(this.grad3[this.perm[BB]%12],x-1,y-1),u),v);
+            }
+        }
+    </script>
+
     <script>
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
-        let noise = new Noise(Math.random());
+        let noise = new Noise({random: () => Math.random()});
 
-        // Параметры генерации
-        const scale = 0.03;
-        const terrainLevels = {
-            water: 0.3,
-            sand: 0.35,
-            grass: 0.5,
-            forest: 0.7,
-            mountain: 0.9
-        };
-
-        const colors = {
-            water: '#74b9ff',
-            sand: '#ffeaa7',
-            grass: '#55efc4',
-            forest: '#00b894',
-            mountain: '#a4b0be',
-            snow: '#ffffff'
+        const settings = {
+            scale: 0.05,
+            colors: {
+                water: '#74b9ff',
+                sand: '#ffeaa7',
+                grass: '#55efc4',
+                forest: '#00b894',
+                mountain: '#a4b0be',
+                snow: '#ffffff'
+            },
+            levels: [0.3, 0.35, 0.5, 0.7, 0.9]
         };
 
         function generateMap() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Инициализация нового экземпляра шума
+            noise = new Noise({random: () => Math.random()});
             
-            // Инициализация генератора с новым сидом
-            noise = new Noise(Math.random());
-            
-            // Генерация карты
+            // Создаем массив пикселей
             const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
             
             for(let y = 0; y < canvas.height; y++) {
                 for(let x = 0; x < canvas.width; x++) {
-                    const value = (noise.perlin2(x * scale, y * scale) + 1) / 2;
-                    const color = getColor(value);
+                    // Получаем значение шума
+                    const value = (noise.perlin2(x * settings.scale, y * settings.scale) + 1) / 2;
                     
-                    const index = (y * canvas.width + x) * 4;
+                    // Определяем цвет
+                    let color;
+                    if(value < settings.levels[0]) color = settings.colors.water;
+                    else if(value < settings.levels[1]) color = settings.colors.sand;
+                    else if(value < settings.levels[2]) color = settings.colors.grass;
+                    else if(value < settings.levels[3]) color = settings.colors.forest;
+                    else if(value < settings.levels[4]) color = settings.colors.mountain;
+                    else color = settings.colors.snow;
+                    
+                    // Конвертируем цвет
                     const rgb = hexToRgb(color);
+                    const idx = (y * canvas.width + x) * 4;
                     
-                    imageData.data[index] = rgb.r;
-                    imageData.data[index + 1] = rgb.g;
-                    imageData.data[index + 2] = rgb.b;
-                    imageData.data[index + 3] = 255;
+                    data[idx] = rgb.r;
+                    data[idx + 1] = rgb.g;
+                    data[idx + 2] = rgb.b;
+                    data[idx + 3] = 255;
                 }
             }
             
+            // Отрисовываем результат
             ctx.putImageData(imageData, 0, 0);
-        }
-
-        function getColor(value) {
-            if(value < terrainLevels.water) return colors.water;
-            if(value < terrainLevels.sand) return colors.sand;
-            if(value < terrainLevels.grass) return colors.grass;
-            if(value < terrainLevels.forest) return colors.forest;
-            if(value < terrainLevels.mountain) return colors.mountain;
-            return colors.snow;
         }
 
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
+            return {
                 r: parseInt(result[1], 16),
                 g: parseInt(result[2], 16),
                 b: parseInt(result[3], 16)
-            } : {r: 0, g: 0, b: 0};
+            };
         }
 
-        // Первая генерация
+        // Первоначальная генерация
         generateMap();
     </script>
 </body>
-  </html>
+</html>
