@@ -4,11 +4,28 @@
     <title>Генератор 2D карт</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --container-bg: rgba(255, 255, 255, 0.95);
+            --text-color: #2d3436;
+            --button-bg: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            --border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --container-bg: rgba(40, 40, 40, 0.95);
+            --text-color: #ffffff;
+            --button-bg: linear-gradient(135deg, #2d3436 0%, #0984e3 100%);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
+            transition: background 0.3s, color 0.3s;
         }
 
         body {
@@ -100,9 +117,26 @@
             height: 20px;
             border-radius: 5px;
         }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+                border-radius: 12px;
+            }
+            
+            button {
+                padding: 0.6rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
+    <button class="theme-switcher" onclick="toggleTheme()">🌓</button>
     <div class="container">
         <h1>🌍 Генератор ландшафта</h1>
         <div class="controls">
@@ -161,46 +195,55 @@
     </script>
 
     <script>
+        // Инициализация Canvas
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         let noise = new Noise({random: () => Math.random()});
-
+        
+        // Настройки
         const settings = {
             scale: 0.05,
+            octaves: 4,
+            persistence: 0.5,
+            lacunarity: 2.0,
             colors: {
-                water: '#74b9ff',
-                sand: '#ffeaa7',
-                grass: '#55efc4',
-                forest: '#00b894',
-                mountain: '#a4b0be',
+                deepWater: '#1a237e',
+                water: '#1976d2',
+                sand: '#ffe082',
+                grass: '#81c784',
+                forest: '#2e7d32',
+                mountain: '#757575',
                 snow: '#ffffff'
-            },
-            levels: [0.3, 0.35, 0.5, 0.7, 0.9]
+            }
         };
 
         function generateMap() {
-            // Инициализация нового экземпляра шума
-            noise = new Noise({random: () => Math.random()});
+            // Адаптивный размер canvas
+            const size = Math.min(window.innerWidth * 0.9, 600);
+            canvas.width = size;
+            canvas.height = size;
             
-            // Создаем массив пикселей
+            // Генерация многооктавного шума
             const imageData = ctx.createImageData(canvas.width, canvas.height);
             const data = imageData.data;
             
             for(let y = 0; y < canvas.height; y++) {
                 for(let x = 0; x < canvas.width; x++) {
-                    // Получаем значение шума
-                    const value = (noise.perlin2(x * settings.scale, y * settings.scale) + 1) / 2;
+                    let value = 0;
+                    let amplitude = 1;
+                    let frequency = 1;
                     
-                    // Определяем цвет
-                    let color;
-                    if(value < settings.levels[0]) color = settings.colors.water;
-                    else if(value < settings.levels[1]) color = settings.colors.sand;
-                    else if(value < settings.levels[2]) color = settings.colors.grass;
-                    else if(value < settings.levels[3]) color = settings.colors.forest;
-                    else if(value < settings.levels[4]) color = settings.colors.mountain;
-                    else color = settings.colors.snow;
+                    for(let o = 0; o < settings.octaves; o++) {
+                        const sampleX = x * settings.scale * frequency;
+                        const sampleY = y * settings.scale * frequency;
+                        value += noise.perlin2(sampleX, sampleY) * amplitude;
+                        
+                        amplitude *= settings.persistence;
+                        frequency *= settings.lacunarity;
+                    }
                     
-                    // Конвертируем цвет
+                    value = (value + 1) / 2; // Нормализация
+                    const color = getTerrainColor(value);
                     const rgb = hexToRgb(color);
                     const idx = (y * canvas.width + x) * 4;
                     
@@ -211,8 +254,18 @@
                 }
             }
             
-            // Отрисовываем результат
             ctx.putImageData(imageData, 0, 0);
+        }
+
+        function getTerrainColor(value) {
+            // Улучшенное распределение биомов
+            if(value < 0.25) return settings.colors.deepWater;
+            if(value < 0.3) return settings.colors.water;
+            if(value < 0.35) return settings.colors.sand;
+            if(value < 0.6) return settings.colors.grass;
+            if(value < 0.75) return settings.colors.forest;
+            if(value < 0.9) return settings.colors.mountain;
+            return settings.colors.snow;
         }
 
         function hexToRgb(hex) {
@@ -224,7 +277,28 @@
             };
         }
 
-        // Первоначальная генерация
+        // Темная тема
+        function toggleTheme() {
+            const body = document.body;
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? '' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        }
+
+        // Инициализация темы
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme === 'dark' ? 'dark' : '');
+        }
+
+        // Адаптация под мобильные устройства
+        function handleResize() {
+            generateMap();
+        }
+
+        // Инициализация
+        window.addEventListener('resize', handleResize);
+        initTheme();
         generateMap();
     </script>
 </body>
