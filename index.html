@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Генератор 2D карт</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 2rem;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            color: #2d3436;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+
+        canvas {
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            background: #fff;
+        }
+
+        canvas:hover {
+            transform: scale(1.02);
+        }
+
+        .controls {
+            margin: 1.5rem 0;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(113, 168, 255, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(113, 168, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .color-legend {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 Генератор ландшафта</h1>
+        <div class="controls">
+            <button onclick="generateMap()">Создать новый мир</button>
+        </div>
+        <canvas id="mapCanvas" width="512" height="512"></canvas>
+        <div class="color-legend">
+            <div class="legend-item">
+                <div class="color-box" style="background: #74b9ff"></div>
+                <span>Вода</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #ffeaa7"></div>
+                <span>Песок</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #55efc4"></div>
+                <span>Трава</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #00b894"></div>
+                <span>Лес</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #a4b0be"></div>
+                <span>Горы</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #ffffff"></div>
+                <span>Снег</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noisejs/2.1.0/perlin.js"></script>
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        let noise = new Noise(Math.random());
+
+        const scale = 0.03;
+        const terrainLevels = {
+            water: 0.3,
+            sand: 0.35,
+            grass: 0.5,
+            forest: 0.7,
+            mountain: 0.9
+        };
+
+        const colors = {
+            water: '#74b9ff',
+            sand: '#ffeaa7',
+            grass: '#55efc4',
+            forest: '#00b894',
+            mountain: '#a4b0be',
+            snow: '#ffffff'
+        };
+
+        function generateMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            noise = new Noise(Math.random());
+            
+            for(let x = 0; x < canvas.width; x++) {
+                for(let y = 0; y < canvas.height; y++) {
+                    let value = noise.perlin2(x * scale, y * scale);
+                    value = (value + 1) / 2;
+                    
+                    let color;
+                    if(value < terrainLevels.water) color = colors.water;
+                    else if(value < terrainLevels.sand) color = colors.sand;
+                    else if(value < terrainLevels.grass) color = colors.grass;
+                    else if(value < terrainLevels.forest) color = colors.forest;
+                    else if(value < terrainLevels.mountain) color = colors.mountain;
+                    else color = colors.snow;
+                    
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+
+        generateMap();
+    </script>
+</body>
+  </html>
