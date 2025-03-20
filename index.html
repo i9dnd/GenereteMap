@@ -132,15 +132,29 @@
             height: 20px;
             border-radius: 5px;
         }
+
+        .loader {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+        }
         
     </style>
 </head>
 <body>
+    <div class="loader"id="loader">Генерация...</div>
     <button class="theme-switcher" onclick="toggleTheme()">🌓</button>
     <div class="container">
         <h1>🌍 Генератор ландшафта</h1>
         <div class="controls">
-            <button onclick="generateMap()">Создать новый мир</button>
+            <button onclick="startGeneration()">Создать новый мир</button>
         </div>
         <canvas id="mapCanvas" width="512" height="512"></canvas>
         <div class="color-legend">
@@ -172,134 +186,150 @@
     </div>
 
     <script>
-        // Встроенная версия NoiseJS для избежания проблем с CDN
-        class Noise {
-            constructor(seed){this.grad3=[[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
-                [0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];this.p=[];for(let i=0;i<256;i++)this.p[i]=Math.floor(seed.random()*256);
-                this.perm=[];for(let i=0;i<512;i++)this.perm[i]=this.p[i&255];}
-            dot(g,x,y){return g[0]*x+g[1]*y;}
-            mix(a,b,t){return (1-t)*a+t*b;}
-            fade(t){return t*t*t*(t*(t*6-15)+10);}
-            perlin2(x,y){
-                let X=Math.floor(x)&255,Y=Math.floor(y)&255;
-                x-=Math.floor(x);y-=Math.floor(y);
-                let u=this.fade(x),v=this.fade(y);
-                let A=this.perm[X]+Y,AA=this.perm[A],AB=this.perm[A+1],
-                    B=this.perm[X+1]+Y,BA=this.perm[B],BB=this.perm[B+1];
-                return this.mix(this.mix(this.dot(this.grad3[this.perm[AA]%12],x,y),
-                        this.dot(this.grad3[this.perm[BA]%12],x-1,y),u),
-                    this.mix(this.dot(this.grad3[this.perm[AB]%12],x,y-1),
-                        this.dot(this.grad3[this.perm[BB]%12],x-1,y-1),u),v);
-            }
+// Исправленная реализация шума Перлина
+class ImprovedNoise {
+    constructor(seed) {
+        this.p = new Uint8Array(512);
+        const permutation = [...Array(256)].map((_, i) => i);
+        for(let i = 0; i < 256; i++) {
+            const j = Math.floor(seed.random() * (256 - i)) + i;
+            [permutation[i], permutation[j]] = [permutation[j], permutation[i]];
         }
-    </script>
+        for(let i = 0; i < 512; i++) this.p[i] = permutation[i & 255];
+    }
 
-    <script>
-        // Инициализация Canvas
-        const canvas = document.getElementById('mapCanvas');
-        const ctx = canvas.getContext('2d');
-        let noise = new Noise({random: () => Math.random()});
-        
-        // Настройки
-        const settings = {
-            scale: 0.05,
-            octaves: 4,
-            persistence: 0.5,
-            lacunarity: 2.0,
-            colors: {
-                deepWater: '#1a237e',
-                water: '#1976d2',
-                sand: '#ffe082',
-                grass: '#81c784',
-                forest: '#2e7d32',
-                mountain: '#757575',
-                snow: '#ffffff'
-            }
-        };
+    noise(x, y) {
+        const X = Math.floor(x) & 255;
+        const Y = Math.floor(y) & 255;
+        x -= Math.floor(x);
+        y -= Math.floor(y);
+        const u = x * x * x * (x * (x * 6 - 15) + 10);
+        const v = y * y * y * (y * (y * 6 - 15) + 10);
+        const a = this.p[X] + Y;
+        const b = this.p[X+1] + Y;
+        return this.lerp(
+            this.lerp(this.grad(this.p[a], x, y), 
+                     this.grad(this.p[b], x-1, y), u),
+            this.lerp(this.grad(this.p[a+1], x, y-1), 
+                     this.grad(this.p[b+1], x-1, y-1), u), 
+            v
+        );
+    }
 
-        function generateMap() {
-            // Адаптивный размер canvas
-            const size = Math.min(window.innerWidth * 0.9, 600);
-            canvas.width = size;
-            canvas.height = size;
-            
-            // Генерация многооктавного шума
-            const imageData = ctx.createImageData(canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            for(let y = 0; y < canvas.height; y++) {
-                for(let x = 0; x < canvas.width; x++) {
-                    let value = 0;
-                    let amplitude = 1;
-                    let frequency = 1;
-                    
-                    for(let o = 0; o < settings.octaves; o++) {
-                        const sampleX = x * settings.scale * frequency;
-                        const sampleY = y * settings.scale * frequency;
-                        value += noise.perlin2(sampleX, sampleY) * amplitude;
-                        
-                        amplitude *= settings.persistence;
-                        frequency *= settings.lacunarity;
-                    }
-                    
-                    value = (value + 1) / 2; // Нормализация
-                    const color = getTerrainColor(value);
-                    const rgb = hexToRgb(color);
-                    const idx = (y * canvas.width + x) * 4;
-                    
-                    data[idx] = rgb.r;
-                    data[idx + 1] = rgb.g;
-                    data[idx + 2] = rgb.b;
-                    data[idx + 3] = 255;
-                }
-            }
-            
-            ctx.putImageData(imageData, 0, 0);
-        }
+    grad(hash, x, y) {
+        const h = hash & 7;
+        const u = h < 4 ? x : y;
+        const v = h < 4 ? y : x;
+        return ((h & 1) ? -u : u) + ((h & 2) ? -2*v : 2*v);
+    }
 
-        function getTerrainColor(value) {
-            // Улучшенное распределение биомов
-            if(value < 0.25) return settings.colors.deepWater;
-            if(value < 0.3) return settings.colors.water;
-            if(value < 0.35) return settings.colors.sand;
-            if(value < 0.6) return settings.colors.grass;
-            if(value < 0.75) return settings.colors.forest;
-            if(value < 0.9) return settings.colors.mountain;
-            return settings.colors.snow;
-        }
+    lerp(a, b, t) { return a + t * (b - a); }
+}
 
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            };
-        }
+// Инициализация
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+let currentNoise = null;
 
-        // Темная тема
-        function toggleTheme() {
-            const body = document.body;
-            const isDark = body.getAttribute('data-theme') === 'dark';
-            body.setAttribute('data-theme', isDark ? '' : 'dark');
-            localStorage.setItem('theme', isDark ? 'light' : 'dark');
-        }
+// Настройки генерации
+const settings = {
+    scale: 0.05,
+    octaves: 4,
+    persistence: 0.5,
+    colors: {
+        water: '#1e88e5',
+        sand: '#ffd54f',
+        grass: '#7cb342',
+        forest: '#388e3c',
+        mountain: '#757575',
+        snow: '#ffffff'
+    }
+};
 
-        // Инициализация темы
-        function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.body.setAttribute('data-theme', savedTheme === 'dark' ? 'dark' : '');
-        }
-
-        // Адаптация под мобильные устройства
-        function handleResize() {
-            generateMap();
-        }
-
-        // Инициализация
-        window.addEventListener('resize', handleResize);
-        initTheme();
+function startGeneration() {
+    showLoader(true);
+    setTimeout(() => { // Для асинхронной обработки
         generateMap();
-    </script>
+        showLoader(false);
+    }, 50);
+}
+
+function generateMap() {
+    // Сброс предыдущей генерации
+    if(currentNoise) currentNoise = null;
+    
+    // Инициализация холста
+    const size = Math.min(window.innerWidth * 0.9, 600);
+    canvas.width = size;
+    canvas.height = size;
+    
+    // Создаем новый генератор шума
+    currentNoise = new ImprovedNoise({ random: () => Math.random() });
+    
+    // Создаем ImageData
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Генерация карты
+    for(let y = 0; y < canvas.height; y++) {
+        for(let x = 0; x < canvas.width; x++) {
+            let value = 0;
+            let amplitude = 1;
+            let frequency = 1;
+            
+            for(let o = 0; o < settings.octaves; o++) {
+                const nx = x * settings.scale * frequency;
+                const ny = y * settings.scale * frequency;
+                value += currentNoise.noise(nx, ny) * amplitude;
+                amplitude *= settings.persistence;
+                frequency *= 2;
+            }
+            
+            value = (value + 1) / 2; // Нормализация
+            const color = getColor(value);
+            const idx = (y * canvas.width + x) * 4;
+            
+            data[idx] = color.r;
+            data[idx + 1] = color.g;
+            data[idx + 2] = color.b;
+            data[idx + 3] = 255;
+        }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function getColor(value) {
+    let color;
+    if(value < 0.3) color = hexToRgb(settings.colors.water);
+    else if(value < 0.35) color = hexToRgb(settings.colors.sand);
+    else if(value < 0.6) color = hexToRgb(settings.colors.grass);
+    else if(value < 0.75) color = hexToRgb(settings.colors.forest);
+    else if(value < 0.9) color = hexToRgb(settings.colors.mountain);
+    else color = hexToRgb(settings.colors.snow);
+    return color;
+}
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    };
+}
+
+function showLoader(show) {
+    document.getElementById('loader').style.display = show ? 'block' : 'none';
+}
+
+// Инициализация при загрузке
+window.addEventListener('load', () => {
+    startGeneration();
+    window.addEventListener('resize', () => {
+        if(window.innerWidth !== canvas.width) startGeneration();
+    });
+});
+</script>
 </body>
 </html>
