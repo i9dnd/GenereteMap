@@ -319,6 +319,18 @@ function hexToRgb(hex) {
     };
 }
 
+function toggleTheme() {
+            const body = document.body;
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? '' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme === 'dark' ? 'dark' : '');
+}
+
 function showLoader(show) {
     document.getElementById('loader').style.display = show ? 'block' : 'none';
 }
@@ -326,10 +338,12 @@ function showLoader(show) {
 // Инициализация при загрузке
 window.addEventListener('load', () => {
     startGeneration();
+    initTheme();
     window.addEventListener('resize', () => {
         if(window.innerWidth !== canvas.width) startGeneration();
     });
 });
+
 </script>
 </body>
 </html>
