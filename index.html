@@ -34,64 +34,79 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 2rem;
+            background: var(--bg-color);
+            padding: 1rem;
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 2rem;
+            background: var(--container-bg);
+            padding: 1.5rem;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid var(--border-color);
         }
 
         h1 {
-            color: #2d3436;
-            margin-bottom: 1.5rem;
+            color: var(--text-color);
+            margin-bottom: 1rem;
             font-weight: 700;
             text-align: center;
-            letter-spacing: -0.5px;
         }
 
         canvas {
+            width: 100%!important;
+            height: auto!important;
             border-radius: 12px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-            background: #fff;
-        }
-
-        canvas:hover {
-            transform: scale(1.02);
+            background: var(--container-bg);
+            touch-action: none;
         }
 
         .controls {
-            margin: 1.5rem 0;
             display: flex;
             gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
             justify-content: center;
         }
 
         button {
             padding: 0.8rem 1.5rem;
-            font-size: 1rem;
+            font-size: 0.9rem;
             border: none;
             border-radius: 8px;
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            background: var(--button-bg);
             color: white;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(113, 168, 255, 0.2);
+            transition: transform 0.2s;
         }
 
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(113, 168, 255, 0.3);
+        .theme-switcher {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
         }
 
-        button:active {
-            transform: translateY(0);
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+                border-radius: 12px;
+            }
+            
+            button {
+                padding: 0.6rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
         }
 
         .color-legend {
@@ -118,21 +133,6 @@
             border-radius: 5px;
         }
         
-        @media (max-width: 480px) {
-            .container {
-                padding: 1rem;
-                border-radius: 12px;
-            }
-            
-            button {
-                padding: 0.6rem 1rem;
-                font-size: 0.8rem;
-            }
-            
-            h1 {
-                font-size: 1.5rem;
-            }
-        }
     </style>
 </head>
 <body>
